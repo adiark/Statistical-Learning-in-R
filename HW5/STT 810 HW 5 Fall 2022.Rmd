@@ -1,0 +1,290 @@
+---
+title: "STT 810"
+author: "Aditya Jain"
+header-includes:
+   - \usepackage{bbm}
+   - \usepackage{amsmath}
+   - \usepackage[utf8]{inputenc}
+   - \usepackage[english]{babel}
+   - \usepackage{amsthm}
+   - \DeclareUnicodeCharacter{2212}{\textendash}
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    toc : true
+  html_document:
+    df_print: paged
+subtitle: Homework 5
+---
+
+
+```{r setup, include=FALSE}
+library(dplyr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\newpage
+
+## Question 1
+
+1. In the car_multi.csv file, there is a field called acceleration. Calculate 
+
+a. The mean value
+
+```{r}
+# setwd("C:\\Users\\Adi\\Desktop\\Fall-22 Study Material\\STT 810\\HW\\HW5")
+cars_multi <- read.csv('cars_multi.csv', header = TRUE)
+mean_acc <- mean(cars_multi$acceleration)
+paste(mean_acc)
+```
+
+b. The standard deviation
+```{r}
+std_acc <- sd(cars_multi$acceleration)
+paste(std_acc)
+```
+
+c. The 5th and 95th quantile
+```{r}
+quantile_range <- quantile(cars_multi$acceleration, c(0.05,0.95))
+paste(quantile_range)
+
+```
+
+\newpage
+
+## Question 2
+
+2. For this acceleration field, assuming it is normally distributed, conduct a hypothesis test at the 
+95% confidence level to determine whether you can say the mean value is greater than 15.2. 
+State the null hypothesis. Conduct the hypothesis test by
+
+The null hypothesis is - the mean acceleration of the car is less than 15.2
+
+a. Constructing an appropriate confidence interval
+```{r}
+a1 <- mean_acc + (std_acc/sqrt(length(cars_multi$acceleration)))*
+  qt(0.05,length(cars_multi$acceleration)-1)
+paste(a1)
+```
+
+At 95 % Confidence interval we can say the null hypothesis is invalid and the 
+mean value is greater than 15.2
+
+b. Calculating a p-value, both by
+```{r}
+# i. Analytically
+a2 <- pt((15.2-mean_acc)/(std_acc/sqrt(length(cars_multi$acceleration)))
+         ,length(cars_multi$acceleration)-1)
+paste(a2)
+
+```
+
+```{r}
+# ii. Running an appropriate simulation
+trials <- 10000
+sampmean <- mean_acc
+n <- length(cars_multi$acceleration)
+H0mean <- 15.2
+simmean <- rep(0,trials)
+for(i in 1:trials){
+  simsamp <- H0mean + std_acc*rt(n, n - 1) 
+  simmean[i] <- mean(simsamp)
+}
+p_value <- sum(simmean >= sampmean)/trials
+paste(p_value)
+```
+
+As p value is less than 0.05, we can say that the null hypothesis is falsified.
+
+\newpage
+
+## Question 3
+
+3.  A Poisson process generates the following data: {3, 5, 6, 7, 10, 4, 5, 6, 4, 3}, covering 2 second
+intervals. Run a Monte Carlo simulation to test the hypothesis at the 95% confidence level that
+the rate parameter is greater than 2.
+
+The null hypothesis is - the rate parameter is less than or equal to 2
+```{r}
+c <- c(3,5,6,7,10,4,5,6,4,3)
+trials <- 10000
+samprate <- (sum(c)/length(c))
+n <- 10
+H0rate <- 2
+simrate <- rep(0,trials)
+for(i in 1:trials){
+  simsamp <- rpois(n, H0rate*2) # rate times time (i.e 2 seconds)
+  simrate[i] <- sum(simsamp)/n
+}
+p_value <- sum(simrate >= samprate)/trials
+paste(p_value)
+```
+As p-value is less than 0.05, we can say that the null hypothesis is falsified and the rate parameter is greater than or equal to 2 for the given poisson distribution.
+
+\newpage
+
+## Question 4
+
+4. For the 4 values you calculated in #1, construct 95% confidence intervals using
+a. Regular bootstrapping
+```{r}
+# Regular Bootstrapping
+mn0 <- rep(0,10000)
+sd0 <- rep(0,10000)
+five0 <- rep(0,10000)
+ninefive0 <-  rep(0,10000)
+for(i in 1:10000){
+  samp0 <- sample(cars_multi$acceleration, length(cars_multi$acceleration),
+                  replace = TRUE)
+  mn0[i] <- mean(samp0)
+  sd0[i] <- sd(samp0)
+  five0[i] <- quantile(samp0, 0.05)
+  ninefive0[i] <- quantile(samp0, 0.95)
+}
+paste(quantile(mn0, c(0.025, 0.975)))
+paste(quantile(sd0, c(0.025, 0.975)))
+paste(quantile(five0, c(0.025, 0.975)))
+paste(quantile(ninefive0, c(0.025, 0.975)))
+```
+b. Bayesian bootstrapping
+```{r}
+# Bayesian Bootstrapping 
+library(DirichletReg)
+weight <- rep(0,length(cars_multi$acceleration))
+mn1 <- rep(0,10000)
+sd1 <- rep(0,10000)
+five1 <- rep(0,10000)
+ninefive1 <-  rep(0,10000)
+for(i in 1:10000){
+  weight <- rdirichlet(1, rep(1,length(cars_multi$acceleration)))
+  samp1 <- sample(cars_multi$acceleration,length(cars_multi$acceleration),weight,
+                  replace = TRUE)
+  mn1[i] <- mean(samp1)
+  sd1[i] <- sd(samp1)
+  five1[i] <- quantile(samp1, 0.05)
+  ninefive1[i] <- quantile(samp1, 0.95)
+}
+paste(quantile(mn1, c(0.025, 0.975)))
+paste(quantile(sd1, c(0.025, 0.975)))
+paste(quantile(five1, c(0.025, 0.975)))
+paste(quantile(ninefive1, c(0.025, 0.975)))
+```
+\newpage
+
+## Question 5
+
+5. Import the data in the dataset called “longtail.csv.” Calculate the standard deviation and the 
+0.99 quantile. Then create 95% confidence intervals for these two quantities, using both regular 
+and Bayesian bootstrapping. Describe what you see with these results
+
+```{r}
+lt <- read.csv("longtail.csv", stringsAsFactors = FALSE)
+lt <- lt$x
+ltsd <- sd(lt)
+paste(ltsd)
+lt99 <- quantile(lt,0.99)
+paste(lt99)
+# regular bootstrapping
+ltsd0 <- rep(0,10000)
+lt990 <-  rep(0,10000)
+for(i in 1:10000){
+  samp0 <- sample(lt, length(lt), replace = TRUE)
+  ltsd0[i] <- sd(samp0)
+  lt990[i] <- quantile(samp0, 0.99)
+}
+paste(quantile(ltsd0, c(0.025, 0.975)))
+paste(quantile(lt990, c(0.025, 0.975)))
+```
+
+```{r}
+# Bayesian Bootstrapping 
+weight <- rep(0,length(lt))
+ltsd1 <- rep(0,10000)
+lt991 <-  rep(0,10000)
+for(i in 1:10000){
+  weight <- rdirichlet(1, rep(1,length(lt)))
+  samp1 <- sample(lt,length(lt),weight, replace = TRUE)
+  ltsd1[i] <- sd(samp1)
+  lt991[i] <- quantile(samp1, 0.99)
+}
+paste(quantile(ltsd1, c(0.025, 0.975)))
+paste(quantile(lt991, c(0.025, 0.975)))
+```
+\newpage 
+
+## Question 6
+(a) Find the eigenvectors and eigenvalues for the matrix
+
+$A = \begin{bmatrix} 1 & 7 & 3 \\ 7 & 4 & 5 \\ 3 & 5 & 0 \end{bmatrix}$
+
+```{r}
+A = as.matrix(cbind(c(1,7,3),c(7,4,5),c(3,5,0)))
+eigenA = eigen(A)
+eigenA
+```
+      
+(b) Express the vectors x = <1, 3, 1> and y = <-1, 4, 9> in terms of the eigenvectors basis for the 
+above matrix.
+
+```{r}
+x = as.matrix(c(1,3,1))
+y = as.matrix(c(-1,4,9))
+xa = solve(eigenA$vectors)%*%x
+ya = solve(eigenA$vectors)%*%y
+paste(xa)
+paste(ya)
+```
+
+(c) Find the inner product of x and y in the original coordinates. Then find the inner product of x 
+and y in terms of the eigenvector basis. Do you get the same value?
+
+```{r}
+inner_original = t(x)%*%y
+inner_basis = t(xa)%*%ya
+paste(inner_original)
+paste(inner_basis)
+paste("We get the same value.")
+```
+\newpage
+
+## Question 7
+
+For this problem we will use the nndb dataset available in the sample data. There are 45 
+columns, 38 of which are numerical. 
+a. Calculate the covariance matrix for the numerical data.
+
+```{r}
+nndb = read.csv("nndb_flat.csv", stringsAsFactors = FALSE)
+nndb_num = nndb[8:ncol(nndb)]
+cov_nndb = cov(nndb[8:ncol(nndb)])
+cov_nndb
+```
+
+b. The eigenvalues of the covariance matrix are called the principal component values. 
+How many of the 38 principal components are within 0.1% of the largest component?
+
+```{r}
+eigen_nndb = eigen(cov_nndb)
+eigen_nndb$values
+paste(sum(eigen_nndb$values[2:length(eigen_nndb$values)]
+          < 0.001*eigen_nndb$values[1]))
+```
+
+The number of principal components that are less than 0.1% of the
+largest component is equal to - 30
+
+c. Transform the data into the eigenvector basis, also called the principal component 
+basis. Calculate the covariance matrix in the new basis. What structure can you see 
+from this matrix
+```{r}
+nndb_num = as.matrix(nndb_num)
+transform_nndb_num = nndb_num%*%solve(eigen_nndb$vectors)
+transform_cov = cov(transform_nndb_num)
+transform_cov
+```
+
+```{r}
+dim(transform_cov)
+```

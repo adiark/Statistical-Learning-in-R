@@ -1,0 +1,98 @@
+---
+title: "STT 810"
+author: "Aditya Jain"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    toc : true
+  html_document:
+    df_print: paged
+subtitle: ICA 18  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1.	Read the data into R.  
+```{r}
+setwd("C:\\Users\\Adi\\Desktop\\Fall-22 Study Material\\STT 810\\ICA")
+data <- read.csv('hypodata.csv', stringsAsFactors = FALSE, header = TRUE)
+data <- data$x
+```
+
+
+2.	Find the mean, standard deviation, and standard error.
+```{r}
+mn <-  mean(data)
+sd <- sd(data)
+serror  <- sd/sqrt(length(data))
+paste(mn, sd, serror)
+
+```
+
+3.	Assuming the data is normal, build a 99% (2-sided) confidence interval with the t distribution.
+```{r}
+a3 <- mn + serror*qt(c(0.005, 0.995), length(data) - 1)
+paste(a3)
+```
+
+4.	Next, use standard bootstrapping to build the 99% confidence interval.
+```{r}
+datamean1 <- rep(0,10000)
+datasd1 <- rep(0,10000)
+for(i in 1:10000){
+  datasamp <- sample(data, length(data), replace = TRUE)
+  datamean1[i] <- mean(datasamp)
+  datasd1[i] <- sd(datasamp)
+}
+paste(quantile(datamean1, c(0.005, 0.995)))
+
+```
+
+5.	Use the Bayesian bootstrapping to build the 99% confidence interval.
+```{r}
+library(DirichletReg)
+weight <- rep(0,length(data))
+datamean2 <- rep(0,10000)
+datasd2 <- rep(0,10000)
+for(i in 1:10000){
+  weight <- rdirichlet(1, rep(1,length(data)))
+  datasamp <- sample(data, length(data), prob = weight, replace = TRUE)
+  datamean2[i] <- mean(datasamp)
+  datasd2[i] <- sd(datasamp)
+}
+paste(quantile(datamean2, c(0.005, 0.995)))
+
+```
+
+6.	Plot a histogram of the simulations in (4) and (5).  Does it look like the simulated means fit a normal distribution?
+```{r}
+hist(datamean1, breaks = 20)
+```
+
+```{r}
+hist(datamean2, breaks = 20)
+```
+The simulated mean does not fit the normal distribution. 
+
+7.	How do the 3 confidence intervals compare?
+
+The confidence interval increases from t distribution to normal bootstrapping to bayesian bootstrapping. Thus, we can say that bayesian method gives us more broder estimate of our confidence interval. 
+
+8.	Next, use both standard and Bayesian bootstrapping to build a 99% CI for the standard deviation.  Plot a histogram of each.  Is the graph symmetric or skewed?
+```{r}
+paste(quantile(datasd1, c(0.005, 0.995)))
+paste(quantile(datasd2, c(0.005, 0.995)))
+```
+
+```{r}
+hist(datasd1, breaks = 20)
+```
+
+```{r}
+hist(datasd2, breaks = 20)
+```
+
+The standard deviation is not normal as well. 

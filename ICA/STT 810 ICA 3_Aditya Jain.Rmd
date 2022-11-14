@@ -1,0 +1,158 @@
+---
+title: "ICA Tuesday"
+author: "Aditya Jain"
+date: "2022-09-14"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1 
+
+### a.
+
+Modify and run the board game example simulation (without bonus) so that it runs 100,000 times. Give the percentage each of the 3 players wins. All problems below will be run with 100,000 simulations.
+
+```{r }
+sim <- 100000
+win <- replicate(sim,0)
+for(i in 1:sim){
+  P <- c(0,0,0)
+  while(max(P) < 8){
+    for(j in 1:3){
+      roll <- sample(1:6,1)
+      P[j] = P[j] + roll
+      if(P[j] >= 8){
+        break
+      }
+    }
+  }
+  win[i] <- j
+}
+print(paste("Probability that player one wins",round(100*(sum(win == 1)/sim),1),"%"))
+print(paste("Probability that player two wins",round(100*(sum(win == 2)/sim),1),"%"))
+print(paste("Probability that player third wins",round(100*(sum(win == 3)/sim),1),"%"))
+
+```
+\newpage
+
+### b.
+
+Modify and run the board game example simulation so that the winner is the first to 50. How do the winning percentages compare to (a)? Why?
+
+```{r}
+sim <- 100000
+win <- replicate(sim,0)
+for(i in 1:sim){
+  P <- c(0,0,0)
+  while(max(P) < 50){
+    for(j in 1:3){
+      roll <- sample(1:6,1)
+      P[j] = P[j] + roll
+      if(P[j] >= 50){
+        break
+      }
+    }
+  }
+  win[i] <- j
+}
+
+print(paste("Probability that player one wins",round(100*(sum(win == 1)/sim),1),"%"))
+print(paste("Probability that player two wins",round(100*(sum(win == 2)/sim),1),"%"))
+print(paste("Probability that player third wins",round(100*(sum(win == 3)/sim),1),"%"))
+```
+The percentage moves closer to fair distribution, where winning chances are equal for all (33%). This is becuase the game is played for longer duration as winning target is 50. This gives enough tries. 
+
+\newpage
+
+### c.
+
+Modify and run the board game example simulation in (b) (winner is first to 50) so that a 4-sided die is used instead. How do the winning percentages compare to (b)? Why?
+
+```{r}
+sim <- 100000
+win <- replicate(sim,0)
+for(i in 1:sim){
+  P <- c(0,0,0)
+  while(max(P) < 50){
+    for(j in 1:3){
+      roll <- sample(1:4,1)
+      P[j] = P[j] + roll
+      if(P[j] >= 50){
+        break
+      }
+    }
+  }
+  win[i] <- j
+}
+
+print(paste("Probability that player one wins",round(100*(sum(win == 1)/sim),1),"%"))
+print(paste("Probability that player two wins",round(100*(sum(win == 2)/sim),1),"%"))
+print(paste("Probability that player third wins",round(100*(sum(win == 3)/sim),1),"%"))
+```
+The winning percentage remains same as it is independent to the number of sides on the dice, in cases when larger amount of simulations are run. 
+
+\newpage
+
+### d 
+
+Modify and run the board game example simulation in (a) so that if any player lands on the 4th square, they get an extra turn (play to 8).
+```{r}
+sim <- 100000
+win <- replicate(sim,0)
+for(i in 1:sim){
+  P <- c(0,0,0)
+  while(max(P) < 8){
+    for(j in 1:3){
+      roll <- sample(1:6,1)
+      P[j] = P[j] + roll
+      if(P[j] == 4){
+        roll <- sample(1:6,1)
+        P[j] = P[j] + roll
+      }
+      if(P[j] >= 8){
+        break
+      }
+    }
+  }
+  win[i] <- j
+}
+
+print(paste("Probability that player one wins",round(100*(sum(win == 1)/sim),1),"%"))
+print(paste("Probability that player two wins",round(100*(sum(win == 2)/sim),1),"%"))
+print(paste("Probability that player third wins",round(100*(sum(win == 3)/sim),1),"%"))
+```
+\newpage
+
+### e.
+
+Modify and run the board game example simulation in (d) so that there are 5 players. Plot a histogram of the wins by each player.
+
+```{r}
+sim <- 100000
+win <- replicate(sim,0)
+for(i in 1:sim){
+  P <- c(0,0,0,0,0)
+  while(max(P) < 8){
+    for(j in 1:5){
+      roll <- sample(1:6,1)
+      P[j] = P[j] + roll
+      if(P[j] == 4){
+        roll <- sample(1:6,1)
+        P[j] = P[j] + roll
+      }
+      if(P[j] >= 8){
+        break
+      }
+    }
+  }
+  win[i] <- j
+}
+
+hist(win)
+
+```
+
+
