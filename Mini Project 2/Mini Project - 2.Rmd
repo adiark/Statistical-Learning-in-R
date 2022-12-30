@@ -1,0 +1,424 @@
+---
+title: "Final Project"
+author: "Aditya Jain"
+header-includes:
+   - \usepackage{bbm}
+   - \usepackage{amsmath}
+   - \usepackage[utf8]{inputenc}
+   - \usepackage[english]{babel}
+   - \usepackage{amsthm}
+   - \DeclareUnicodeCharacter{2212}{\textendash}
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    toc : true
+  html_document:
+    df_print: paged
+subtitle: Mini Project 2
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(GGally)
+library(Metrics)
+library(tidyverse)
+knitr::opts_chunk$set(echo = FALSE,warning=FALSE, message=FALSE)
+setwd("C:\\Users\\Adi\\Desktop\\Fall-22 Study Material\\STT 810\\Mini Project 2")
+```
+
+
+\newpage
+
+## Exploratory data analysis
+
+* Glimpse of the data
+
+```{r,echo=FALSE}
+song_data <- read.csv('song_data.csv', stringsAsFactors = FALSE)
+head(song_data)
+```
+* Checking for null value
+
+```{r, echo=FALSE}
+sum(is.na.data.frame(song_data))
+```
+* Number of duplicates found
+
+```{r, echo=FALSE}
+sum(duplicated(song_data))
+```
+* Duplicates removed as no more duplicates found
+
+```{r,echo=FALSE}
+# removing duplicates, 3909 duplicates removed
+song_data <- song_data[-which(duplicated(song_data)), ]
+sum(duplicated(song_data))
+```
+
+* Summary of the dataset.
+
+```{r, echo=FALSE}
+summary(song_data)
+```
+* More information on variable structure and data type.
+
+```{r, echo=FALSE}
+str(song_data)
+
+```
+* Visualizing correlation values. 
+
+```{r,echo=FALSE}
+cor(song_data[2:ncol(song_data)])
+```
+Variables with good correlations 
+
+* Acousticness - energy 
+* Acousticness - loudness
+* Danceability + audio valence
+* Loudness + energy 
+* Audio valence + danceability + energy
+
+* Performing some variable transformation and scaling/normalizing tempo and loudness attributes.
+
+```{r,echo=FALSE}
+song_data$song_duration_min <- song_data$song_duration_ms/60000
+song_data <- song_data[-3]
+
+x_range0 <- range(song_data$loudness)
+song_data$loudness_scale <- (song_data$loudness - x_range0[1]) / diff(x_range0)
+
+x_range1 <- range(song_data$tempo)
+song_data$tempo_scale <- (song_data$tempo - x_range1[1]) / diff(x_range1)
+
+song_data <- song_data[-c(9,12)]
+head(song_data)
+```
+
+* Visualizing distribution of target variable.
+
+```{r, echo=FALSE}
+hist(song_data$song_popularity,breaks = 100)
+```
+* Visualizing other dependent variables and testing transformations to make data normalised
+
+```{r, echo=FALSE}
+hist((song_data$danceability)^2,breaks = 100)
+```
+* The attributes like danceability and breaks were skewed and as the value range lies in the range of 0-1 squaring 
+became the best option. 
+
+```{r, echo=FALSE}
+hist((song_data$energy)^2,breaks = 100)
+```
+* Taking cube root to minimize high left skewness in the liveness attribute
+
+```{r, echo=FALSE}
+hist((song_data$liveness)^(1/3),breaks = 100)
+```
+
+```{r, echo=FALSE}
+hist((song_data$loudness_scale)^3,breaks = 100)
+```
+
+```{r, echo=FALSE}
+hist(log(song_data$speechiness),breaks = 100)
+```
+
+```{r, echo=FALSE}
+hist(song_data$tempo_scale,breaks = 100)
+```
+
+```{r, echo=FALSE}
+hist(song_data$audio_valence,breaks = 100)
+```
+
+```{r, echo=FALSE}
+plot(song_data$audio_valence ,song_data$song_popularity)
+```
+
+```{r, echo=FALSE}
+plot(song_data$acousticness,song_data$song_popularity)
+```
+
+```{r, echo=FALSE}
+plot(song_data$energy,song_data$song_popularity)
+```
+
+
+* Generating meaningful attributes in the data frame and visualizing 
+```{r,echo=FALSE}
+song_data$danceability_square <- (song_data$danceability)^2
+song_data$energy_square <- (song_data$energy)^2
+song_data$liveness_cuberoot <- (song_data$liveness)^(1/3)
+song_data$loudness_cube <- (song_data$loudness_scale)^(3)
+```
+
+
+```{r,echo=FALSE}
+# to validate the model
+train_test_split <- function(df,x){
+  # removing song names
+  df <- select(df, -c(1))
+  # split_pct <- 0.7
+  n <- nrow(df)*x # train size
+  row_samp <- sample(1:nrow(df), n, replace = FALSE)
+  train <- df[row_samp,]
+  test <- df[-row_samp,]
+  
+  return(list(train,test))
+  
+}
+
+# Making multiple models on basis of song popularity
+output <- train_test_split(song_data, 0.7)
+train <- output[[1]]
+test <- output[[2]]
+```
+
+\newpage
+
+## Baseline Models
+
+Generating two baseline models, with one being mean value and other as the basic Linear 
+regression model with all the attributes included. Here, we have used the entire data set to 
+generate the models. Along with the model summary, we are also calculating RMSE and MAE error of our 
+model to get more accuracy scores.
+
+```{r,echo=FALSE}
+# Generating Baseline models 
+baseline_mean <- mean(train$song_popularity)
+predictions <- rep(baseline_mean, length(train$song_popularity))
+rmse_mean_train <- sqrt(mean((train$song_popularity - predictions)^2))
+mae_train <- mae(train$song_popularity, predictions)
+paste("RMSE and MAE errors for train data for mean baseline model")
+paste(rmse_mean_train, mae_train)
+
+predictions <- rep(baseline_mean, length(test$song_popularity))
+rmse_mean_test_bs <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test_mbs <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for mean baseline model")
+paste(rmse_mean_test_bs, mae_test_mbs)
+
+baseline_linearreg <- lm(data = train, song_popularity ~ acousticness +  .)
+summary(baseline_linearreg)
+predictions <- predict(baseline_linearreg,test)
+rmse_test_bs <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test_bs <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_bs,mae_test_bs)
+```
+
+* Playing with different attributes to see variation in model accuracy and determine important features 
+for the final model.
+
+```{r,echo=FALSE}
+# testing different combinations of models
+linearreg1 <- lm(data = train, song_popularity ~ danceability_square + energy_square +
+                   instrumentalness + loudness_cube + audio_valence)
+summary(linearreg1)
+predictions <- predict(linearreg1,test)
+rmse_test <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for new model")
+paste(rmse_test,mae_test)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_bs,mae_test_bs)
+```
+\newpage
+
+## Feature Engineering
+
+The goal of this feature engineering is to create new input features that may be more predictive of the popularity of a song than the original input features. To do this, we have divided the acousticness of a song by its energy and multiplied its danceability by its energy.
+
+Dividing the acousticness of a song by its energy can help capture the relative acousticness of a song compared to its overall energy level. This can be useful because songs with high acousticness and low energy may have a different impact on popularity than songs with low acousticness and high energy. By dividing the acousticness by the energy, we can create a new input feature that captures this relative acousticness and may be more predictive of popularity.
+
+Multiplying the danceability of a song by its energy can also help capture the relative danceability of a song compared to its overall energy level. This can be useful because songs with high danceability and low energy may have a different impact on popularity than songs with low danceability and high energy. By multiplying the danceability by the energy, we can create a new input feature that captures this relative danceability and may be more predictive of popularity.
+
+Overall, these feature engineering choices make sense because they create new input features that capture the relative acousticness and danceability of a song compared to its energy level, which may be more predictive of popularity than the original input features. By incorporating these new features into a regression model, we can potentially improve the model's ability to predict the popularity of a song.
+
+```{r,echo=FALSE}
+# testing feature engineering
+train$f1 <- (train$acousticness)/(train$energy)
+paste(cor(train$song_popularity,train$f1))
+test$f1 <- (test$acousticness)/(test$energy)
+
+train$f2 <- (train$danceability_square)*(train$energy_square) 
+paste(cor(train$song_popularity,train$f2))
+test$f2 <- (test$danceability_square)*(test$energy_square)
+
+linearreg1 <- lm(data = train, song_popularity ~ instrumentalness + f1 + f2)
+summary(linearreg1)
+predictions <- predict(linearreg1,test)
+rmse_test <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for new model")
+paste(rmse_test,mae_test)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_bs,mae_test_bs)
+```
+\newpage
+
+## Oversampling
+
+Over-sampling is a technique used in machine learning and data analysis to balance the distribution of classes in a dataset. This is often done when the dataset is imbalanced, meaning that one class (or group of classes) is significantly more represented than the other classes. In this situation, over-sampling can be used to increase the number of samples in the under-represented classes, so that the class distribution becomes more balanced and the model can learn from all the classes more effectively
+
+```{r,echo=FALSE}
+# using oversampling method
+song_data_sampled <- song_data %>% filter(song_popularity != 0)
+song_data_sampled_70 <- song_data_sampled %>% filter(song_popularity >= 60)
+n <- nrow(song_data_sampled_70)
+
+# Randomly select n rows from the dataframe
+song_data_sampled_0_70 <- song_data_sampled %>% filter(song_popularity < 60) %>% 
+  sample_n(n)
+
+new_song_data <- rbind(song_data_sampled_0_70, song_data_sampled_70)
+```
+
+* Randomly splitting data to split into train and test set for our sampled data and
+
+```{r,echo=FALSE}
+# Making multiple models on basis of song popularity
+new_song_data <- select(new_song_data, -c(1))
+split <- caret :: createDataPartition(new_song_data$song_popularity, p=0.7, list=FALSE)
+# output <- train_test_split(new_song_data, 0.7)
+train <- new_song_data[split,]
+test <- new_song_data[-split,]
+```
+
+## New Baseline Models
+
+* Re generating baseline model for the new dataset.
+
+```{r,echo=FALSE}
+# Generating Baseline models 
+baseline_mean <- mean(train$song_popularity)
+predictions <- rep(baseline_mean, length(train$song_popularity))
+rmse_mean_train <- sqrt(mean((train$song_popularity - predictions)^2))
+mae_train <- mae(train$song_popularity, predictions)
+paste("RMSE and MAE errors for train data for mean baseline model")
+paste(rmse_mean_train, mae_train)
+
+predictions <- rep(baseline_mean, length(test$song_popularity))
+rmse_mean_test_os <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test_mos <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for mean baseline model")
+paste(rmse_mean_test_os, mae_test_mos)
+
+baseline_linearreg <- lm(data = train, song_popularity ~ acousticness +  .)
+summary(baseline_linearreg)
+predictions <- predict(baseline_linearreg,test)
+rmse_test_os <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test_os <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_os,mae_test_os)
+```
+
+* Testing other models to analyse model performance
+```{r,echo=FALSE}
+linearreg1 <- lm(data = train, song_popularity ~ acousticness + energy_square +
+                   instrumentalness + loudness_scale + audio_valence)
+summary(linearreg1)
+predictions <- predict(linearreg1,test)
+rmse_test <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for new model")
+paste(rmse_test,mae_test)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_os,mae_test_os)
+```
+```{r,echo=FALSE}
+linearreg1 <- lm(data = train, song_popularity ~ loudness_scale)
+summary(linearreg1)
+predictions <- predict(linearreg1,test)
+rmse_test <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data for new model")
+paste(rmse_test,mae_test)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_os,mae_test_os)
+```
+\newpage
+
+## Final Model
+
+```{r,echo=FALSE}
+# final model
+linearreg1 <- lm(data = train, song_popularity ~ acousticness + energy_square +
+                   instrumentalness + loudness_scale + audio_valence)
+summary(linearreg1)
+predictions <- predict(linearreg1,test)
+rmse_test <- sqrt(mean((test$song_popularity - predictions)^2))
+mae_test <- mae(test$song_popularity, predictions)
+paste("RMSE and MAE errors for test data in case of baseling linear regression model")
+paste(rmse_test_os,mae_test_os)
+paste("RMSE and MAE errors for test data for our final model")
+paste(rmse_test,mae_test)
+```
+\newpage
+
+## Some plot and attribute desciptions
+
+The sign of a parameter in a model indicates the direction of the relationship between the input and output variables. A positive sign indicates a positive relationship, where an increase in the input variable is associated with an increase in the output variable. A negative sign indicates a negative relationship, where an increase in the input variable is associated with a decrease in the output variable.
+
+In our model, the popularity of the song is positively associated with the loudness, however if its too much instrumental or energetic the popularity gets affected negatively, which make sense in case of more use of instrumental but seems doubtful for energy. 
+
+The output consists of four plots that can help visualize and understand the results of a linear regression. The first plot is a scatterplot of the residuals (the difference between the observed values and the predicted values) versus the fitted values (the predicted values). This plot can help identify any patterns or outliers in the residuals, which can indicate potential problems with the model.
+
+The second plot is a Q-Q plot of the residuals. This plot compares the quantiles of the residuals to the quantiles of a theoretical distribution (usually a normal distribution). This can help assess the normality of the errors in the model.
+
+The third plot is a scale-location plot of the square root of the absolute values of the residuals versus the fitted values. This plot can help identify any potential problems with heteroscedasticity (unequal variance) in the model.
+
+The fourth plot is a plot of Cook's distances versus the row labels. This plot shows the influence of each observation on the fitted values of the model. Observations with high Cook's distances may have a disproportionate influence on the model, and may need to be examined more closely.
+
+Overall, these plots provide valuable insights into the quality of a linear regression model and can help identify potential issues that may need to be addressed.
+
+
+```{r, echo=FALSE}
+plot(linearreg1)
+```
+
+\newpage
+
+## Sensitivity Analysis
+
+Sensitivity analysis is a technique used to evaluate how the uncertainty in the output of a model or system can be attributed to different sources of uncertainty in the input. It is a systematic way of identifying the most important inputs to a model and understanding how changes in those inputs affect the output of the model.
+
+Sensitivity analysis is often used in decision-making, where it can help identify the key drivers of a decision and assess the potential impact of different scenarios on the outcome of the decision. It can also be used to assess the robustness of a model or system, by examining how sensitive it is to changes in the input parameters.
+
+```{r,echo=FALSE}
+# sensitivity analysis
+library(tornado)
+# plot.new()
+par(mfrow=c(1,1), mar=c(5,4,4,2) + 0.1, oma=c(0,0,0,0), mgp=c(3,1,0), xpd=NA)
+torn2 <- tornado(linearreg1, type = "ranges")
+# Create the bar plot using the default function
+# plot.new()
+plot( torn2, xlabel = "X", geom_bar_control = list(width = 0.4),
+     col = c("#0072B2", "#E69F00"), # Change the colors of the bars
+     cex.names = 0.8) # Adjust the size of the x-axis labels
+# 
+# title(main = "Sensitivity Analysis")
+
+```
+\newpage
+
+## Predicted vs Actual visualization
+
+```{r,echo=FALSE}
+# Create dataframe with predictions and actual song popularity values
+df = data.frame(predictions, test$song_popularity)
+
+# Use ggplot to create scatterplot with regression line
+ggplot(df, aes(x=predictions, y=test$song_popularity)) + 
+  geom_point() +   # scatterplot with points
+  geom_smooth(method="lm", se=FALSE) +   # add linear regression line
+  xlab("Predicted Song Popularity") +   # x-axis label
+  ylab("Actual Song Popularity") +   # y-axis label
+  ggtitle("Predicted vs Actual Song Popularity") +   # plot title
+  theme_bw()   # use black and white theme
+```
+
+

@@ -1,0 +1,252 @@
+---
+title: "STT 810"
+author: "Aditya Jain"
+header-includes:
+   - \usepackage{bbm}
+   - \usepackage{amsmath}
+   - \usepackage[utf8]{inputenc}
+   - \usepackage[english]{babel}
+   - \usepackage{amsthm}
+   - \DeclareUnicodeCharacter{2212}{\textendash}
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    toc : true
+  html_document:
+    df_print: paged
+subtitle: Homework 6
+---
+
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(DirichletReg)
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:\\Users\\Adi\\Desktop\\Fall-22 Study Material\\STT 810\\HW\\HW6")
+```
+
+\newpage
+
+## Question 1
+
+1. A linear regression model prediction is in the form of y = 2.18 x1 – 4.56x2. The model is built using 18
+data points. The root mean square error of the residuals is 0.856.
+
+a What is the E(y | (x1,x2) = (2, -3))?
+```{r}
+funky <-  function(x1,x2) (2.18*x1 - 4.56*x2)
+funky(2,-3)
+```
+
+b What is the probability that y > 20, given that (x1,x2) = (2, -3)?
+```{r}
+p_greater_20 <- 1 - pt((20 - 18.04)/0.856, 16)
+p_greater_20
+```
+
+
+\newpage
+
+## Question 2
+
+2. Take the Boston dataset, available in D2L. This data has information about different neighborhoods in
+Boston, and we will use it to predict the median housing price for the neighborhoods. Here is an
+explanation of the variables:
+
+CRIM: Per capita crime rate by town
+
+ZN: Proportion of residential land zoned for lots over 25,000 sq. ft
+
+INDUS: Proportion of non-retail business acres per town
+
+CHAS: Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)
+
+NOX: Nitric oxide concentration (parts per 10 million)
+
+RM: Average number of rooms per dwelling
+
+AGE: Proportion of owner-occupied units built prior to 1940
+
+DIS: Weighted distances to five Boston employment centers
+
+RAD: Index of accessibility to radial highways
+
+TAX: Full-value property tax rate per $10,000
+
+PTRATIO: Pupil-teacher ratio by town
+
+B: 1000(Bk — 0.63)², where Bk is the proportion of [people of African American descent] by town
+
+LSTAT: Percentage of lower status of the population
+
+MEDV: Median value of owner-occupied homes in $1000s
+
+a. Create a pairs plot with ggpairs for the data.
+```{r, echo=FALSE}
+library(GGally)
+library(ggplot2)
+data_boston = read.csv("Boston.csv")
+ggpairs(data_boston,upper = list(continuous = wrap("cor", size = 9)))
+```
+
+b. Which other variable correlates the strongest with medv? Note that strongest mean largest
+absolute value, whether it’s positive or negative.
+
+Ans: LSTAT: Percentage of lower status of the population has the highest correlation with the medv and equal to -0.737
+
+c. Build a simple linear regression model with that variable as the x, with
+
+1. Constructing the normal equations ATAx = ATb, and solving for the coefficient vector x.
+```{r}
+# setting up normal equations
+A = cbind(1,data_boston$lstat)
+b = data_boston$medv
+x = solve(t(A) %*% A) %*% t(A) %*% b
+x
+```
+
+2. Using lm. Do the coefficients agree?
+```{r}
+real_mod <- (lm(data = data_boston, medv ~ lstat))
+summary(real_mod)
+```
+
+The coefficients agree in both the methods.
+
+d. Next, build a linear regression model with the 2 other variables in addition that correlate
+most strongly with medv, using lm (so 3 variables total).
+
+```{r}
+real_mod <- (lm(data = data_boston, medv ~ lstat + rm + ptratio))
+summary(real_mod)
+```
+
+1. How do the adjusted R-squared values compare between the models?
+
+Ans. The adjusted R-squared value increased when we added more features into our model.
+This, shows that we were able to cover more variance in our data by adding these features.
+
+2. Comment on the significance of the coefficients
+
+Ans. The value of the coefficient associated with column rm (average room per dwelling)
+is comparatively higher than the other two features. As, increasing even one room in 
+a household drastically changes its price, hence the coefficient for column rm is higher 
+as a change in rm will have bigger impact on median price of the house as compared to other two.
+
+3. Are the coefficients in the correct direction? Be sure to explain.
+
+Ans. As we can see the coefficients of lstat and ptratio are negative as for obvious 
+reasons if % of lower status of people and pupil-teacher ratio increases the median
+house prices should go down. Similarly if average number of rooms per 
+dwelling increases the expected value of the house should also increase. 
+Thus, the direction of the coefficients seems reasonable.
+
+
+e. Now, re-do the regression from (c), except this time
+
+* Split the data into training and testing datasets (70/30 split)
+* Build the model on the training dataset
+* Use the model to predict values for the test dataset
+* How do the results compare, in terms of RMSE?
+
+```{r}
+split_pct <- 0.7
+n <- length(data_boston$medv)*split_pct # train size
+row_samp <- sample(1:length(data_boston$medv), n, replace = FALSE)
+train <- data_boston[row_samp,]
+test <- data_boston[-row_samp,]
+boston_train_mod <- lm(data = data_boston, medv ~ lstat)
+test_pred <- predict(boston_train_mod,test)
+test_error <- test$medv - test_pred
+rmse_train <- sqrt(mean(boston_train_mod$residuals^2))
+rmse_test <- sqrt(mean(test_error^2))
+rmse_train
+rmse_test
+```
+f. For the linear regression in (b) re-do the linear regressions in the following ways:
+
+* Construct a linear model with the variable with the strongest correlation, like in
+4(b), but this time do the minimization of RMSE directly, with the optim function.
+Check to make sure the result matches what you got in the previous homework.
+```{r}
+coeff <- rep(0,2)
+lin_reg <- function(coeff) sum((data_boston$medv - (coeff[1] + coeff[2] * data_boston$lstat))^2)
+RMSE_fit <- optim(c(100, -1), lin_reg, data_boston)
+RMSE_fit$par
+```
+
+* Next construct a linear model of the same form, with mean absolute error as the
+loss function, and then use optim to find the fit. Compare the model with what you
+did in the previous part.
+```{r}
+coeff_MAE <- rep(0,2)
+MAE_reg <- function(coeff_MAE) sum(abs(data_boston$medv - 
+                  (coeff_MAE[1] + coeff_MAE[2] * data_boston$lstat)))
+MAE_fit <- optim(c(100, -1), MAE_reg, data_boston)
+MAE_fit$par
+```
+
+g. Use maximum likelihood to construct the linear regression model from (b). Do the
+coefficients agree?
+```{r}
+ll_coeff <- c(0,0,0)
+LLoptim <- function(ll_coeff) 
+      -1*sum(log(dnorm(data_boston$medv 
+      - (ll_coeff[1] + ll_coeff[2]*data_boston$lstat), 0, ll_coeff[3])))
+LL_fit <- optim(c(100,-1, 2000), LLoptim, data_boston)
+LL_fit
+```
+
+h. For the model in (c), what are the 95% confidence intervals for the parameters, according to
+the t-values?
+```{r}
+# for intercept 
+CI_lstat <- 34.55384 + 0.56263*qt(c(0.025,0.975),length(data_boston$lstat)-1)
+CI_lstat
+```
+
+```{r}
+# for coefficient
+CI_medv <- -0.95005 + 0.03873*qt(c(0.025,0.975),length(data_boston$medv)-1)
+CI_medv
+```
+
+i. For the model in (c), what are the 95% confidence intervals for the parameters, using
+* regular bootstrapping, and
+```{r}
+# regular bootstrap
+coeff1 <- rep(0, 100)
+coeff2 <- rep(0, 100)
+
+for(i in 1:100){
+  n <- length(data_boston$lstat)
+  row_samp <- sample(1:n, n, replace = TRUE)
+  data_samp <- data_boston[row_samp,]
+  temp_mod <- lm(data = data_samp, medv ~ lstat)
+  coeff1[i] <- temp_mod$coefficients[1]
+  coeff2[i] <- temp_mod$coefficients[2]
+}
+quantile(coeff1, c(0.025, 0.975))
+quantile(coeff2, c(0.025, 0.975))
+
+```
+
+ Bayesian bootstrapping?
+```{r}
+# Bayesian bootstrap
+coeff1 <- rep(0, 100)
+coeff2 <- rep(0, 100)
+weight <- rep(0,length(data_boston$lstat))
+n <- length(data_boston$lstat)
+for(i in 1:100){
+  weight <- rdirichlet(1, rep(1,n))
+  row_samp <- sample(1:n, n, prob = weight, replace = TRUE)
+  data_samp <- data_boston[row_samp,]
+  temp_mod <- lm(data = data_samp, medv ~ lstat)
+  coeff1[i] <- temp_mod$coefficients[1]
+  coeff2[i] <- temp_mod$coefficients[2]
+}
+quantile(coeff1, c(0.025, 0.975))
+quantile(coeff2, c(0.025, 0.975))
+```
